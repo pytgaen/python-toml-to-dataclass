@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "toml-schema"
+version = "0.1.0"
+description = ""
+authors = ["Pytgaen <32298455+pytgaen@users.noreply.github.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+tomli = "^1.2.2"
+tomli-w = "^1.0.0"
+typical = "^2.7.9"
+genson = "^1.2.2"
+fire = "^0.4.0"
+
+[tool.poetry.dev-dependencies]
+poethepoet = "^0.11.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
