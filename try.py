@@ -12,38 +12,46 @@ def var_to_class_name(name):
     return ''.join(ele.capitalize() for ele in n)
 
 
-def generate_dataclass(model: Dict, class_name: str = "Root"):
+def type_object(model: Dict, class_name: str = "Root"):
     attrs = []
-    if model["type"] == "object":
-        prop = model["properties"]
-        req = model.get("required", [])
-        for name, info in prop.items():
-            typ = info.get('type')
-            if typ == "object":
-                new_class_name = var_to_class_name(name)
-                attrs.append(type_nullable(name, req, new_class_name))
-                generate_dataclass(info, new_class_name)
-            elif typ == "array":
-                attrs.append(type_attr(name, req, info.get('items')))
-            else:
-                attrs.append(type_attr(name, req, typ))
+    prop = model["properties"]
+    req = model.get("required", [])
+    for name, info in prop.items():
+        typ = info.get('type')
+        if typ == "object":
+            new_class_name = var_to_class_name(name)
+            attrs.append(type_nullable(name, req, new_class_name))
+            type_object(info, new_class_name)
+        elif typ == "array":
+            attrs.append(type_attr(name, req, info.get('items'), "array"))
+        else:
+            attrs.append(type_attr(name, req, {'type': typ}))
 
-        print(f"class {class_name}")
-        for a in attrs:
-            print(f"  {a}")
-        print("")
+    print(f"class {class_name}")
+    for a in attrs:
+        print(f"  {a}")
+    print("")
+
+    return class_name
 
 
 a: None = 4
 
 
-def type_attr(name, req, typ):
-    if isinstance(typ, dict) and "type" in typ:
-        return type_array(name, req, typ["type"])
-    elif isinstance(typ, list):
-        return type_array(name, req, typ)
+def type_attr(name, req, typ, type_type=None):
+    if 'anyOf' in typ:
+        r = []
+        for u_typ in typ["anyOf"]:
+            r.append(type_attr(name, req, u_typ, "any"))
+        return f"{name}: Union[" + ",".join(r) + "]"
+    # elif isinstance(typ, dict) and "type" in typ:
+    #     return type_union(name, req, typ["type"])
+    elif "type" in typ and isinstance(typ["type"], list):
+        return type_union(name, req, typ, type_type)
+    elif "type" in typ and typ["type"] == "object":
+        return type_object(typ, "element")
     else:
-        return type_simple(name, req, typ)
+        return type_simple(name, req, typ, type_type)
 
 
 def type_nullable(name, req, py_typ):
@@ -53,16 +61,21 @@ def type_nullable(name, req, py_typ):
         return (f"{name}: Optional[{py_typ}]")
 
 
-def type_simple(name, req, typ):
-    py_typ = map_schema_type_to_python.get(typ, f"Unsupported_{typ}")
+def type_simple(name, req, typ, type_type=None):
+    py_typ = map_schema_type_to_python.get(typ["type"], f"Unsupported_{typ}")
+
+    if type_type == 'any':
+        return (f"{py_typ}")
+
     return type_nullable(name, req, py_typ)
 
 
-def type_array(name, req, typs):
+def type_union(name, req, typs, type_type):
     # {'type': ['integer', 'string']}
     # {'anyOf': [{'type': 'integer'}, {'type': 'object', 'properties': {'attr_num': {'type': 'integer'}, 'attr_cd': {'type': 'string'}}}]}
 
-    py_typs = [map_schema_type_to_python.get(typ, f"Unsupported_{typ}") for typ in typs]
+    if "type" in typs and isinstance(typs["type"], list):
+        py_typs = [map_schema_type_to_python.get(typ, f"Unsupported_{typ}") for typ in typs["type"]]
 
     if "None" in py_typs and len(py_typs) > 1:
         py_typs.remove("None")
@@ -71,6 +84,12 @@ def type_array(name, req, typs):
         typs_ = py_typs[0]
     else:
         typs_ = "Union[" + ", ".join(py_typs) + "]"
+
+    if type_type == 'any':
+        return (f"{typs_}")
+
+    if type_type == 'array':
+        return (f"{name}: List[{typs_}]")
 
     return type_nullable(name, req, typs_)
 
@@ -84,11 +103,10 @@ def print_vars(level, name, req, typ):
 
 builder = SchemaBuilder()
 # builder.add_schema({"type": "object", "properties": {}})
-# builder.add_object({"hi": "there"})
 builder.add_object({"h_int": 5})
 builder.add_object({"he_llo": {"attr_name": "toto"}})
 builder.add_object({"lst_int_str": [1, "2"]})
-# builder.add_object({"lst_obj": [{"attr_num": 1}, {"attr_cd": "toto"}, 5]})
+builder.add_object({"lst_obj": [{"attr_num": 1}, {"attr_cd": "toto"}, 5]})
 builder.add_object({"h_float": 4.5})
 builder.add_object({"h_str": "my"})
 builder.add_object({"h_bool": True})
@@ -98,7 +116,7 @@ builder.add_object({"h_any": "any"})
 builder.add_object({"h_any": 22})
 print(builder.to_json(indent=2))
 sch = builder.to_schema()
-generate_dataclass(sch)
+type_object(sch)
 
 # print("-----------")
 # builder2 = SchemaBuilder()
