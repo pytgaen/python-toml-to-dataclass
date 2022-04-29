@@ -57,10 +57,7 @@ class TurnsElapsed:
 
     @property
     def range_elapse(self):
-        if self.turns:
-            return self.turns[-1].stop - self.turns[0].start
-        else:
-            return -1
+        return self.turns[-1].stop - self.turns[0].start if self.turns else -1
 
     def summary(self) -> str:
         if len(self.turns) == 1:
@@ -95,18 +92,10 @@ class ElapseKeeper(ContextDecorator):
         self._groups_elapse[group_name].stop()
 
     def summary(self) -> str:
-        res = []
-        for k_g, v_g in self._groups_elapse.items():
-            res.append(v_g.summary())
-
-        return res
+        return [v_g.summary() for k_g, v_g in self._groups_elapse.items()]
 
     def details(self) -> str:
-        res = []
-        for k_g, v_g in self._groups_elapse.items():
-            res.append(v_g.details())
-
-        return res
+        return [v_g.details() for k_g, v_g in self._groups_elapse.items()]
 
     def _old_truc(self):
         if self.logger:
