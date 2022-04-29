@@ -40,12 +40,8 @@ a: None = 4
 
 def type_attr(name, req, typ, type_type=None):
     if 'anyOf' in typ:
-        r = []
-        for u_typ in typ["anyOf"]:
-            r.append(type_attr(name, req, u_typ, "any"))
+        r = [type_attr(name, req, u_typ, "any") for u_typ in typ["anyOf"]]
         return f"{name}: Union[" + ",".join(r) + "]"
-    # elif isinstance(typ, dict) and "type" in typ:
-    #     return type_union(name, req, typ["type"])
     elif "type" in typ and isinstance(typ["type"], list):
         return type_union(name, req, typ, type_type)
     elif "type" in typ and typ["type"] == "object":
@@ -55,10 +51,7 @@ def type_attr(name, req, typ, type_type=None):
 
 
 def type_nullable(name, req, py_typ):
-    if name in req:
-        return (f"{name}: {py_typ}")
-    else:
-        return (f"{name}: Optional[{py_typ}]")
+    return f"{name}: {py_typ}" if name in req else f"{name}: Optional[{py_typ}]"
 
 
 def type_simple(name, req, typ, type_type=None):
